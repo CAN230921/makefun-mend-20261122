@@ -151,21 +151,40 @@ function findOccurrences(
   const hi = Math.min(maxPos, fileLines.length - oldLines.length);
   if (oldLines.length === 0 || minPos > hi) return null;
   const maxTier = strict ? 0 : 2;
+  const winEnd = hi + oldLines.length;
   for (let tier = 0; tier <= maxTier; tier += 1) {
     const oldNorm = tier === 0 ? oldLines : oldLines.map((l) => normalizeForTier(l, tier));
-    const fileNorm = tier === 0 ? fileLines : fileLines.map((l) => normalizeForTier(l, tier));
     const positions: number[] = [];
     const firstOld = oldNorm[0]!;
-    for (let pos = minPos; pos <= hi; pos += 1) {
-      if (fileNorm[pos] !== firstOld) continue;
-      let ok = true;
-      for (let k = 1; k < oldNorm.length; k += 1) {
-        if (fileNorm[pos + k] !== oldNorm[k]) {
-          ok = false;
-          break;
+    if (tier === 0) {
+      for (let pos = minPos; pos <= hi; pos += 1) {
+        if (fileLines[pos] !== firstOld) continue;
+        let ok = true;
+        for (let k = 1; k < oldNorm.length; k += 1) {
+          if (fileLines[pos + k] !== oldNorm[k]) {
+            ok = false;
+            break;
+          }
         }
+        if (ok) positions.push(pos);
       }
-      if (ok) positions.push(pos);
+    } else {
+      const winNorm = new Array<string>(winEnd - minPos);
+      for (let idx = minPos; idx < winEnd; idx += 1) {
+        winNorm[idx - minPos] = normalizeForTier(fileLines[idx]!, tier);
+      }
+      const limit = hi - minPos;
+      for (let rel = 0; rel <= limit; rel += 1) {
+        if (winNorm[rel] !== firstOld) continue;
+        let ok = true;
+        for (let k = 1; k < oldNorm.length; k += 1) {
+          if (winNorm[rel + k] !== oldNorm[k]) {
+            ok = false;
+            break;
+          }
+        }
+        if (ok) positions.push(minPos + rel);
+      }
     }
     if (positions.length > 0) return { tier, positions };
   }
